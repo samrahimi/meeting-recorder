@@ -1,0 +1,9 @@
+{
+  "name": "meeting-recorder",
+  "version": "1.0.0",
+  "description": "Local webapp that records a Chrome tab (video + tab audio + microphone) and saves an MP4.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

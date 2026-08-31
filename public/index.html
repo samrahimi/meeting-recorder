@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meeting Recorder</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main>
+    <header>
+      <h1>🎙️ Meeting Recorder</h1>
+      <p class="sub">Record a Chrome tab, your whole screen, or an app window — with audio — saved as MP4.</p>
+    </header>
+
+    <section class="card" id="setup-card">
+      <div class="field">
+        <label for="rec-name">Recording name</label>
+        <input type="text" id="rec-name" placeholder="e.g. Weekly standup" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>What to record</label>
+        <div class="mode-group" id="mode-group">
+          <label class="mode"><input type="radio" name="mode" value="browser" checked>
+            <span class="mode-title">Chrome tab</span>
+            <span class="mode-desc">tab video + tab audio</span></label>
+          <label class="mode"><input type="radio" name="mode" value="monitor">
+            <span class="mode-title">Entire screen</span>
+            <span class="mode-desc">screen + system audio</span></label>
+          <label class="mode"><input type="radio" name="mode" value="window">
+            <span class="mode-title">App window</span>
+            <span class="mode-desc">window, mic audio only</span></label>
+        </div>
+      </div>
+      <div class="field checkbox">
+        <label><input type="checkbox" id="use-mic" checked> Record my microphone</label>
+      </div>
+      <button id="start-btn" class="primary">Choose source &amp; start recording</button>
+      <div class="hint" id="mode-hint"></div>
+      <div id="setup-error" class="error" hidden></div>
+    </section>
+
+    <section class="card recording-card" id="recording-card" hidden>
+      <div class="rec-status">
+        <span class="rec-dot"></span>
+        <span id="rec-timer">00:00</span>
+        <span id="rec-warnings" class="warn"></span>
+      </div>
+      <video id="preview" muted playsinline></video>
+      <div class="meters">
+        <div class="meter"><span>Source audio</span><div class="bar"><div id="tab-level"></div></div></div>
+        <div class="meter"><span>Microphone</span><div class="bar"><div id="mic-level"></div></div></div>
+      </div>
+      <button id="stop-btn" class="danger">Stop &amp; save</button>
+    </section>
+
+    <section class="card" id="processing-card" hidden>
+      <div class="spinner"></div>
+      <p id="processing-msg">Finishing upload and converting to MP4… don't close this tab.</p>
+    </section>
+
+    <section class="card" id="done-card" hidden>
+      <p id="done-msg"></p>
+      <button id="again-btn" class="primary">Record another</button>
+    </section>
+
+    <section id="recordings-section">
+      <h2>Recordings</h2>
+      <ul id="recordings-list"></ul>
+    </section>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>
