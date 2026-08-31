@@ -23,6 +23,7 @@ const MIME = {
   '.js': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.mp4': 'video/mp4',
+  '.mp3': 'audio/mpeg',
   '.webm': 'video/webm',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
@@ -99,22 +100,30 @@ function ffprobeDuration(file) {
   });
 }
 
-async function transcode(tmpPath, outPath) {
-  // Screen-share-friendly encode: original resolution, modest frame rate,
-  // H.264 High profile via libx264 (crisp text at low bitrate), AAC audio.
-  // yuv420p + faststart for QuickTime/web compatibility. Dimensions are
-  // rounded down to even numbers as yuv420p requires.
-  const args = [
-    '-hide_banner', '-y',
-    '-i', tmpPath,
-    '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2',
-    '-r', '10',
-    '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23',
-    '-pix_fmt', 'yuv420p',
-    '-c:a', 'aac', '-b:a', '128k', '-ac', '2',
-    '-movflags', '+faststart',
-    outPath,
-  ];
+// Settings accepted from the client, whitelisted here.
+const ALLOWED_FPS = [5, 10, 15, 24, 30];
+const ALLOWED_CRF = [20, 23, 28];
+
+async function transcode(tmpPath, outPath, { fps, crf, audioOnly }) {
+  const args = ['-hide_banner', '-y', '-i', tmpPath];
+  if (audioOnly) {
+    // Drop the video stream entirely and encode the mixed audio as MP3.
+    args.push('-vn', '-c:a', 'libmp3lame', '-b:a', '160k', '-ac', '2');
+  } else {
+    // Screen-share-friendly encode: original resolution, chosen frame rate,
+    // H.264 via libx264 (crisp text at low bitrate), AAC audio.
+    // yuv420p + faststart for QuickTime/web compatibility. Dimensions are
+    // rounded down to even numbers as yuv420p requires.
+    args.push(
+      '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2',
+      '-r', String(fps),
+      '-c:v', 'libx264', '-preset', 'veryfast', '-crf', String(crf),
+      '-pix_fmt', 'yuv420p',
+      '-c:a', 'aac', '-b:a', '128k', '-ac', '2',
+      '-movflags', '+faststart',
+    );
+  }
+  args.push(outPath);
   await runFfmpeg(args);
 }
 
@@ -166,17 +175,24 @@ const server = http.createServer(async (req, res) => {
         return json(res, 400, { error: 'no data was recorded' });
       }
 
-      let outName = `${s.name}.mp4`;
+      const audioOnly = url.searchParams.get('audioOnly') === '1';
+      const fpsParam = parseInt(url.searchParams.get('fps'), 10);
+      const crfParam = parseInt(url.searchParams.get('crf'), 10);
+      const fps = ALLOWED_FPS.includes(fpsParam) ? fpsParam : 10;
+      const crf = ALLOWED_CRF.includes(crfParam) ? crfParam : 23;
+
+      const ext = audioOnly ? '.mp3' : '.mp4';
+      let outName = `${s.name}${ext}`;
       let outPath = path.join(RECORDINGS_DIR, outName);
       let n = 2;
       while (fs.existsSync(outPath)) {
-        outName = `${s.name} (${n}).mp4`;
+        outName = `${s.name} (${n})${ext}`;
         outPath = path.join(RECORDINGS_DIR, outName);
         n++;
       }
 
       try {
-        await transcode(s.tmpPath, outPath);
+        await transcode(s.tmpPath, outPath, { fps, crf, audioOnly });
       } catch (e) {
         // Keep the raw webm so the recording is never lost.
         const keepPath = path.join(RECORDINGS_DIR, `${s.name}.webm`);
@@ -205,7 +221,7 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'GET' && p === '/api/recordings') {
       const files = fs.readdirSync(RECORDINGS_DIR)
-        .filter((f) => /\.(mp4|webm)$/i.test(f))
+        .filter((f) => /\.(mp4|mp3|webm)$/i.test(f))
         .map((f) => {
           const st = fs.statSync(path.join(RECORDINGS_DIR, f));
           return { file: f, size: st.size, mtime: st.mtimeMs };

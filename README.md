@@ -36,6 +36,18 @@ Then open **http://localhost:4470** in Chrome.
 
 Recordings are saved to `recordings/` in this folder.
 
+### Settings
+
+- **Output** — *Video + audio* saves an MP4; *Audio only* saves an MP3 (the picker still
+  shows video sources — that's just how Chrome exposes tab/system audio; the video is
+  captured at minimal quality and discarded).
+- **Frame rate** — 5–30 fps for the saved MP4. 10 fps is plenty for screen shares; use
+  24–30 for motion-heavy content.
+- **Compression** — H.264 CRF presets: Sharper (20), Balanced (23), Compact (28).
+- **Record my microphone** — uncheck for system/tab audio only.
+
+Settings persist in the browser between sessions.
+
 ## How it works
 
 - The page uses `getDisplayMedia` to capture the tab (video + tab audio) and `getUserMedia`

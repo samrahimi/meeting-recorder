@@ -32,6 +32,37 @@
             <span class="mode-desc">window, mic audio only</span></label>
         </div>
       </div>
+      <div class="field">
+        <label>Output</label>
+        <div class="mode-group two" id="output-group">
+          <label class="mode"><input type="radio" name="output" value="video" checked>
+            <span class="mode-title">Video + audio</span>
+            <span class="mode-desc">MP4</span></label>
+          <label class="mode"><input type="radio" name="output" value="audio">
+            <span class="mode-title">Audio only</span>
+            <span class="mode-desc">MP3</span></label>
+        </div>
+      </div>
+      <div class="settings-row" id="video-settings">
+        <div class="field">
+          <label for="fps">Frame rate</label>
+          <select id="fps">
+            <option value="5">5 fps — smallest</option>
+            <option value="10" selected>10 fps — screen shares</option>
+            <option value="15">15 fps</option>
+            <option value="24">24 fps</option>
+            <option value="30">30 fps — smooth motion</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="quality">Compression</label>
+          <select id="quality">
+            <option value="20">Sharper — bigger file</option>
+            <option value="23" selected>Balanced</option>
+            <option value="28">Compact — smaller file</option>
+          </select>
+        </div>
+      </div>
       <div class="field checkbox">
         <label><input type="checkbox" id="use-mic" checked> Record my microphone</label>
       </div>

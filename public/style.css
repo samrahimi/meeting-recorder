@@ -39,6 +39,22 @@ h2 { font-size: 17px; margin: 36px 0 12px; }
 .field.checkbox label { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: 14px; cursor: pointer; }
 
 .mode-group { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.mode-group.two { grid-template-columns: repeat(2, 1fr); }
+
+.settings-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.settings-row.disabled { opacity: 0.4; pointer-events: none; }
+select {
+  width: 100%;
+  background: #0d0f13;
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 10px 12px;
+  font-size: 14px;
+  appearance: none;
+  -webkit-appearance: none;
+}
+select:focus { outline: none; border-color: var(--accent); }
 label.mode {
   display: flex; flex-direction: column; gap: 2px;
   background: #0d0f13;

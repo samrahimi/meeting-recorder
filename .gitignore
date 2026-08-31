@@ -1,3 +1,6 @@
 recordings/
 node_modules/
 .DS_Store
+*.mp4
+*.mp3
+*.webm

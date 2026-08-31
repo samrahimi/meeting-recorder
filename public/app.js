@@ -61,8 +61,50 @@ function selectedMode() {
   return document.querySelector('input[name="mode"]:checked').value;
 }
 
+function getSettings() {
+  return {
+    audioOnly: document.querySelector('input[name="output"]:checked').value === 'audio',
+    fps: parseInt($('fps').value, 10),
+    crf: parseInt($('quality').value, 10),
+    useMic: $('use-mic').checked,
+  };
+}
+
 function updateModeHint() {
-  document.getElementById('mode-hint').innerHTML = MODE_HINTS[selectedMode()];
+  let html = MODE_HINTS[selectedMode()];
+  if (getSettings().audioOnly) {
+    html += ' <em>Audio-only: the picker still shows video sources — that\'s just how the ' +
+      'audio is captured; only the sound is kept.</em>';
+  }
+  document.getElementById('mode-hint').innerHTML = html;
+}
+
+function updateSettingsUI() {
+  $('video-settings').classList.toggle('disabled', getSettings().audioOnly);
+  updateModeHint();
+}
+
+const SETTINGS_KEY = 'recorder-settings';
+
+function persistSettings() {
+  const s = getSettings();
+  s.mode = selectedMode();
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch {}
+}
+
+function restoreSettings() {
+  let s;
+  try { s = JSON.parse(localStorage.getItem(SETTINGS_KEY)); } catch {}
+  if (!s) return;
+  const setRadio = (name, value) => {
+    const el = document.querySelector(`input[name="${name}"][value="${value}"]`);
+    if (el) el.checked = true;
+  };
+  if (s.mode) setRadio('mode', s.mode);
+  setRadio('output', s.audioOnly ? 'audio' : 'video');
+  if ([5, 10, 15, 24, 30].includes(s.fps)) $('fps').value = s.fps;
+  if ([20, 23, 28].includes(s.crf)) $('quality').value = s.crf;
+  if (typeof s.useMic === 'boolean') $('use-mic').checked = s.useMic;
 }
 
 function pickMimeType() {
@@ -156,14 +198,19 @@ function enqueueChunk(blob) {
 
 async function startRecording() {
   $('setup-error').hidden = true;
-  const wantMic = $('use-mic').checked;
+  const settings = getSettings();
+  state.settings = settings;
+  const wantMic = settings.useMic;
 
   const mode = selectedMode();
+  // In audio-only mode a video track is still required (Chrome won't do
+  // audio-only display capture), so grab a cheap low-fps one and discard it later.
+  const captureFps = settings.audioOnly ? 5 : settings.fps;
   let displayStream;
   try {
     displayStream = await navigator.mediaDevices.getDisplayMedia({
       video: {
-        frameRate: { ideal: 15, max: 15 },
+        frameRate: { ideal: captureFps, max: captureFps },
         displaySurface: mode, // pre-selects the matching section in Chrome's picker
       },
       audio: {
@@ -234,9 +281,12 @@ async function startRecording() {
   state.uploadQueue = Promise.resolve();
 
   // Recorder. Bitrate is generous because ffmpeg re-encodes to the final size.
-  const settings = displayStream.getVideoTracks()[0].getSettings();
-  const pixels = (settings.width || 1920) * (settings.height || 1080);
-  const videoBits = Math.min(6_000_000, Math.max(1_500_000, Math.round(pixels * 1.4)));
+  // In audio-only mode the video is thrown away, so starve it of bits.
+  const trackSettings = displayStream.getVideoTracks()[0].getSettings();
+  const pixels = (trackSettings.width || 1920) * (trackSettings.height || 1080);
+  const videoBits = settings.audioOnly
+    ? 150_000
+    : Math.min(8_000_000, Math.max(1_500_000, Math.round(pixels * 1.4 * (captureFps / 15))));
 
   const recorder = new MediaRecorder(stream, {
     mimeType: pickMimeType(),
@@ -259,8 +309,11 @@ async function startRecording() {
 
   // UI
   const preview = $('preview');
-  preview.srcObject = new MediaStream([displayStream.getVideoTracks()[0]]);
-  preview.play().catch(() => {});
+  preview.hidden = settings.audioOnly;
+  if (!settings.audioOnly) {
+    preview.srcObject = new MediaStream([displayStream.getVideoTracks()[0]]);
+    preview.play().catch(() => {});
+  }
   state.startedAt = Date.now();
   $('rec-timer').textContent = '00:00';
   state.timerInterval = setInterval(() => {
@@ -293,7 +346,14 @@ async function finishRecording() {
   }
 
   try {
-    const res = await fetch(`/api/finish?id=${state.sessionId}`, { method: 'POST' });
+    const s = state.settings || {};
+    const params = new URLSearchParams({
+      id: state.sessionId,
+      fps: s.fps || 10,
+      crf: s.crf || 23,
+      audioOnly: s.audioOnly ? '1' : '0',
+    });
+    const res = await fetch(`/api/finish?${params}`, { method: 'POST' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'finalize failed');
     const dur = data.duration ? fmtTime(data.duration) : '?';
@@ -337,8 +397,13 @@ async function loadRecordings() {
 }
 
 $('start-btn').addEventListener('click', startRecording);
-$('mode-group').addEventListener('change', updateModeHint);
-updateModeHint();
+$('mode-group').addEventListener('change', () => { updateModeHint(); persistSettings(); });
+$('output-group').addEventListener('change', () => { updateSettingsUI(); persistSettings(); });
+for (const id of ['fps', 'quality', 'use-mic']) {
+  $(id).addEventListener('change', persistSettings);
+}
+restoreSettings();
+updateSettingsUI();
 $('stop-btn').addEventListener('click', () => {
   if (state.recorder && state.recorder.state === 'recording') state.recorder.stop();
 });
